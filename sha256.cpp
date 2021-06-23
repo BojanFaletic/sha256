@@ -172,7 +172,7 @@ void sha256_final(SHA256_ctx *ctx, uint8_t hash[]) {
     hash[i + 24] = ctx->state[6] >> (24 - i * 8);
     hash[i + 28] = ctx->state[7] >> (24 - i * 8);
   }
-
+}
 #if 0
 int main() {
   SHA256_ctx *ctx = new SHA256_ctx;
