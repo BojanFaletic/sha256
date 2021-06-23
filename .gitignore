@@ -1,0 +1,4 @@
+vhdl/*.cf
+vhdl/*.o
+vhdl/sha256
+c/*.out
