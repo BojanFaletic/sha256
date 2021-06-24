@@ -45,7 +45,7 @@ ARCHITECTURE Behavioral OF sha256 IS
 
   FUNCTION MAJ(x, y, z : uint32_t) RETURN uint32_t IS
   BEGIN
-    RETURN (x AND y) XOR (x & z) XOR (y AND z);
+    RETURN (x AND y) XOR (x AND z) XOR (y AND z);
   END FUNCTION MAJ;
 
   FUNCTION EP0(x : uint32_t) RETURN uint32_t IS
