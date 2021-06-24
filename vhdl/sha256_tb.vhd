@@ -41,6 +41,10 @@ ARCHITECTURE Behavioral OF sha256_tb IS
     SIGNAL done_out : STD_LOGIC;
     SIGNAL busy : STD_LOGIC;
 
+    TYPE t_hash IS ARRAY(0 TO 31) OF uint8_t;
+    CONSTANT out_hash_correct : t_hash := (x"63", x"53", x"61", x"c4", x"8b", x"b9", x"ea", x"b1", x"41", x"98", x"e7", x"6e", x"a8", x"ab", x"7f", x"1a", x"41", x"68", x"5d", x"6a", x"d6", x"2a", x"a9", x"14", x"6d", x"30", x"1d", x"4f", x"17", x"eb", x"0a", x"e0");
+    signal hash_out : hash_out_t;
+
     FUNCTION TC(x : t_temp_msg) RETURN text_chunk_t IS
         VARIABLE tmp : text_chunk_t;
     BEGIN
@@ -49,6 +53,17 @@ ARCHITECTURE Behavioral OF sha256_tb IS
         END LOOP;
         RETURN tmp;
     END FUNCTION TC;
+
+    -- check if output hash matches correct
+    function check_hash(a : t_hash; b : hash_out_t) return boolean is
+        begin
+            for i in 0 to 31 loop
+                if b(8*(i+1)-1 downto 8*i) = std_logic_vector(a(0)) then
+                    return false;
+                end if;
+            end loop;
+            return true;
+    end function check_hash;
 BEGIN
 
     p_async : PROCESS
@@ -75,6 +90,14 @@ BEGIN
         text_chunk <= TC(temp_msg_1);
         WAIT FOR 10 ns;
         data_in_valid <= '0';
+
+        wait until done_out = '1';
+        if check_hash(out_hash_correct, hash_out) then
+            report "Hash passed!";
+        else
+            report "Hash ERROR!";
+        end if;
+
         WAIT;
     END PROCESS p_run;
 
@@ -87,7 +110,7 @@ BEGIN
         ready         => ready,
         busy          => busy,
         done_out      => done_out,
-        hash_out      => OPEN
+        hash_out      => hash_out
     );
 
 END ARCHITECTURE Behavioral;

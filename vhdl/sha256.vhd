@@ -98,6 +98,7 @@ BEGIN
   -- length in bits of full text (8*sizeof(msg))
   bit_len <= resize(shift_left(text_length, 3), 64);
   -- hash data type format to hash_type
+
   p_async : PROCESS (hash)
   BEGIN
     FOR i IN 0 TO 31 LOOP
@@ -126,6 +127,7 @@ BEGIN
         state(7) <= x"5be0cd19";
         busy <= '0';
         ready <= '0';
+        done_out <= '0';
         sm <= init;
       ELSE
         IF sm = init THEN
@@ -247,7 +249,7 @@ BEGIN
           -- process final block (append length)
 
           -- assume data is less than 56
-          ASSERT text_rem >= 56 REPORT "not implemented";
+          ASSERT text_rem < 56 REPORT "not implemented";
 
 
           -- copy input data to core buffer
@@ -300,20 +302,12 @@ BEGIN
             hash(i + 24) <= shift_right(state(6), (24 - i * 8))(7 DOWNTO 0);
             hash(i + 28) <= shift_right(state(7), (24 - i * 8))(7 DOWNTO 0);
           END LOOP;
-
+          done_out <= '1';
           sm <= init;
         END IF;
       END IF;
     END IF;
   END PROCESS p_main;
-  p_signalization : PROCESS (sm)
-  BEGIN
-    IF sm /= done THEN
-      done_out <= '0';
-    ELSE
-      done_out <= '1';
-    END IF;
-  END PROCESS p_signalization;
 
   K0 : k_memory PORT MAP(
     clk   => clk,
