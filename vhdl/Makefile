@@ -8,7 +8,7 @@ all:
 	ghdl -e sha256
 	ghdl -e sha256_tb
 
-	ghdl -r sha256_tb
+	ghdl -r sha256_tb --stop-time=5us
 
 clean:
 	ghdl --clean
