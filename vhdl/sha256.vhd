@@ -110,8 +110,8 @@ BEGIN
   p_main : PROCESS (clk)
     VARIABLE v_t1, v_t2 : uint32_t;
     VARIABLE m : t_m;
-    variable v_m : uint32_t;
-    variable i : integer range 0 to 63;
+    VARIABLE v_m : uint32_t;
+    VARIABLE i : INTEGER RANGE 0 TO 63;
   BEGIN
     IF rising_edge(clk) THEN
       IF rst_n = '0' THEN
@@ -189,11 +189,19 @@ BEGIN
         ELSIF sm = transform THEN
           -- process chunk (transform function)
           i := transform_counter;
-          if transform_counter < 16 then
-            m(i) := data(4 * i) & data(4 * i + 1) & data(4 * i + 2) & data(4 * i + 3);
-          else
+          IF transform_counter < 16 THEN
+            m(i) := data(0) & data(1) & data(2) & data(3);
+          ELSE
             m(i) := SIG1(m(i - 2)) + m(i - 7) + SIG0(m(i - 15)) + m(i - 16);
-          end if;
+          END IF;
+
+          -- shift register for data
+          FOR j IN 0 TO 14 LOOP
+            data(j * 4) <= data((j + 1) * 4);
+            data(j * 4 + 1) <= data((j + 1) * 4 + 1);
+            data(j * 4 + 2) <= data((j + 1) * 4 + 2);
+            data(j * 4 + 3) <= data((j + 1) * 4 + 3);
+          END LOOP;
 
           v_t1 := h + EP1(e) + CH(e, f, g) + k + m(transform_counter);
           v_t2 := EP0(a) + MAJ(a, b, c);
