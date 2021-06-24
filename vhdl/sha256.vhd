@@ -55,7 +55,7 @@ ARCHITECTURE Behavioral OF sha256 IS
     RETURN rotate_right(x, 17) XOR rotate_right(x, 19) XOR shift_right(x, 10);
   END FUNCTION SIG1;
 
-  TYPE t_sm IS (init, transform_pre_0, transform_pre_1, transform, transform_final, first_and_last, final, done);
+  TYPE t_sm IS (init, transform_pre_1, transform, transform_final, first_and_last, final, done);
   SIGNAL sm : t_sm;
 
   -- ctx structure
@@ -87,7 +87,7 @@ ARCHITECTURE Behavioral OF sha256 IS
       valid : IN BOOLEAN;
       out_k : OUT uint32_t
     );
-  END COMPONENT k_memory;
+  END COMPONENT;
   SIGNAL k : uint32_t;
   SIGNAL valid_k : BOOLEAN;
 
@@ -149,7 +149,8 @@ BEGIN
               sm <= first_and_last;
             ELSE
               is_final_blk <= false;
-              sm <= transform_pre_0;
+              valid_k <= true;
+              sm <= transform_pre_1;
             END IF;
           END IF;
         ELSIF sm = first_and_last THEN
@@ -167,13 +168,9 @@ BEGIN
           data(56) <= bit_len(63 DOWNTO 56);
 
           is_final_blk <= true;
-          sm <= transform_pre_0;
-
-        ELSIF sm = transform_pre_0 THEN
-          busy <= '1';
-          sm <= transform_pre_1;
-          -- enable k from memory (2 clk delay)
           valid_k <= true;
+          sm <= transform_pre_1;
+
         ELSIF sm = transform_pre_1 THEN
           busy <= '1';
 
@@ -222,12 +219,14 @@ BEGIN
           c <= b;
           b <= a;
           a <= v_t1 + v_t2;
-          transform_counter <= transform_counter + 1;
+
           IF transform_counter = 63 THEN
             sm <= transform_final;
             valid_k <= false;
             -- increment processed chunk counter
             chunk_process_cnt <= chunk_process_cnt + 1;
+          ELSE
+            transform_counter <= transform_counter + 1;
           END IF;
         ELSIF sm = transform_final THEN
 
@@ -248,8 +247,9 @@ BEGIN
             busy <= '1';
           ELSE
             -- process next block
-            sm <= transform_pre_0;
+            sm <= transform_pre_1;
             busy <= '0';
+            valid_k <= true;
           END IF;
         ELSIF sm = final THEN
           -- process final block (append length)
@@ -289,7 +289,8 @@ BEGIN
 
           -- process chunk
           transform_counter <= 0;
-          sm <= transform_pre_0;
+          sm <= transform_pre_1;
+          valid_k <= true;
 
           -- process last chunk
 
