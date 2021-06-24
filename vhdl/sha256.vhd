@@ -81,7 +81,7 @@ ARCHITECTURE Behavioral OF sha256 IS
   x"19a4c116", x"1e376c08", x"2748774c", x"34b0bcb5", x"391c0cb3", x"4ed8aa4a", x"5b9cca4f", x"682e6ff3",
   x"748f82ee", x"78a5636f", x"84c87814", x"8cc70208", x"90befffa", x"a4506ceb", x"bef9a3f7", x"c67178f2");
 
-  TYPE t_sm IS (init, transform_pre_0, transform_pre_1, transform, transform_final, final, done);
+  TYPE t_sm IS (init, transform_pre_0, transform_pre_1, transform, transform_final, first_and_last, final, done);
   SIGNAL sm : t_sm;
 
   -- ctx structure
@@ -97,7 +97,7 @@ ARCHITECTURE Behavioral OF sha256 IS
   SIGNAL chunk_process_cnt : INTEGER RANGE 0 TO 63;
 
   -- variables
-  SIGNAL a, b, c, d, e, f, g, h, i, j : uint32_t;
+  SIGNAL a, b, c, d, e, f, g, h : uint32_t;
   TYPE t_m IS ARRAY(0 TO 63) OF uint32_t;
   SIGNAL text_rem : uint8_t;
 
@@ -151,15 +151,32 @@ BEGIN
             -- data_len = 0
 
             -- signalling
-            sm <= transform_pre_0;
             chunk_process_cnt <= 0;
             busy <= '1';
             IF text_length < 56 THEN
               is_final_blk <= true;
+              sm <= first_and_last;
             ELSE
               is_final_blk <= false;
+              sm <= transform_pre_0;
             END IF;
           END IF;
+        ELSIF sm = first_and_last THEN
+          data(to_integer(text_rem)) <= x"80";
+
+          -- append data length to end of block
+          data(63) <= bit_len(7 DOWNTO 0);
+          data(62) <= bit_len(15 DOWNTO 8);
+          data(61) <= bit_len(23 DOWNTO 16);
+          data(60) <= bit_len(31 DOWNTO 24);
+          data(59) <= bit_len(39 DOWNTO 32);
+          data(58) <= bit_len(47 DOWNTO 40);
+          data(57) <= bit_len(55 DOWNTO 48);
+          data(56) <= bit_len(63 DOWNTO 56);
+
+          is_final_blk <= true;
+          sm <= transform_pre_0;
+
         ELSIF sm = transform_pre_0 THEN
           FOR i IN 0 TO 15 LOOP
             m(i) := data(4 * i) & data(4 * i + 1) & data(4 * i + 2) & data(4 * i + 3);
@@ -187,15 +204,13 @@ BEGIN
         ELSIF sm = transform THEN
           -- process chunk (transform function)
           v_t1 := h + EP1(e) + CH(e, f, g) + k(transform_counter) + m(transform_counter);
-          IF transform_counter = 16 THEN
-            NULL;
-          END IF;
           v_t2 := EP0(a) + MAJ(a, b, c);
           h <= g;
           g <= f;
           f <= e;
           e <= d + v_t1;
           d <= c;
+          c <= b;
           b <= a;
           a <= v_t1 + v_t2;
           transform_counter <= transform_counter + 1;
@@ -272,14 +287,14 @@ BEGIN
 
           -- reverse to little indian and output
           FOR i IN 0 TO 3 LOOP
-            hash(i) <= shift_left(state(0), (24 - i * 8))(7 DOWNTO 0);
-            hash(i + 4) <= shift_left(state(1), (24 - i * 8))(7 DOWNTO 0);
-            hash(i + 8) <= shift_left(state(2), (24 - i * 8))(7 DOWNTO 0);
-            hash(i + 12) <= shift_left(state(3), (24 - i * 8))(7 DOWNTO 0);
-            hash(i + 16) <= shift_left(state(4), (24 - i * 8))(7 DOWNTO 0);
-            hash(i + 20) <= shift_left(state(5), (24 - i * 8))(7 DOWNTO 0);
-            hash(i + 24) <= shift_left(state(6), (24 - i * 8))(7 DOWNTO 0);
-            hash(i + 28) <= shift_left(state(7), (24 - i * 8))(7 DOWNTO 0);
+            hash(i) <= shift_right(state(0), (24 - i * 8))(7 DOWNTO 0);
+            hash(i + 4) <= shift_right(state(1), (24 - i * 8))(7 DOWNTO 0);
+            hash(i + 8) <= shift_right(state(2), (24 - i * 8))(7 DOWNTO 0);
+            hash(i + 12) <= shift_right(state(3), (24 - i * 8))(7 DOWNTO 0);
+            hash(i + 16) <= shift_right(state(4), (24 - i * 8))(7 DOWNTO 0);
+            hash(i + 20) <= shift_right(state(5), (24 - i * 8))(7 DOWNTO 0);
+            hash(i + 24) <= shift_right(state(6), (24 - i * 8))(7 DOWNTO 0);
+            hash(i + 28) <= shift_right(state(7), (24 - i * 8))(7 DOWNTO 0);
           END LOOP;
 
           sm <= init;

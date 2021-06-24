@@ -45,6 +45,14 @@ void sha256_transform(SHA256_CTX *ctx, const uint8_t data[])
 	g = ctx->state[6];
 	h = ctx->state[7];
 
+	printf("a: 0x%02x ", a);
+	printf("b: 0x%02x ", b);
+	printf("c: 0x%02x ", c);
+	printf("e: 0x%02x ", d);
+	printf("f: 0x%02x ", e);
+	printf("g: 0x%02x ", f);
+	printf("h: 0x%02x \n", g);
+
 	for (i = 0; i < 64; ++i) {
 		t1 = h + EP1(e) + CH(e,f,g) + k[i] + m[i];
 		t2 = EP0(a) + MAJ(a,b,c);
@@ -128,6 +136,8 @@ void sha256_final(SHA256_CTX *ctx, uint8_t hash[])
 	ctx->data[57] = ctx->bitlen >> 48;
 	ctx->data[56] = ctx->bitlen >> 56;
 	sha256_transform(ctx, ctx->data);
+
+
 
 	// Since this implementation uses little endian uint8_t ordering and SHA uses big endian,
 	// reverse all the uint8_ts when copying the final state to the output hash.
