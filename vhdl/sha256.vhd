@@ -1,16 +1,3 @@
-LIBRARY ieee;
-USE ieee.std_logic_1164.ALL;
-USE ieee.numeric_std.ALL;
-
------- type definitions
-PACKAGE sha_types IS
-  SUBTYPE uint64_t IS unsigned(63 DOWNTO 0);
-  SUBTYPE uint32_t IS unsigned(31 DOWNTO 0);
-  SUBTYPE uint8_t IS unsigned(7 DOWNTO 0);
-  SUBTYPE text_chunk_t IS STD_LOGIC_VECTOR(8 * 64 - 1 DOWNTO 0);
-  SUBTYPE hash_out_t IS STD_LOGIC_VECTOR(8 * 32 - 1 DOWNTO 0);
-END PACKAGE sha_types;
-
 ------ main sha crypto
 LIBRARY ieee;
 USE ieee.std_logic_1164.ALL;
@@ -69,17 +56,6 @@ ARCHITECTURE Behavioral OF sha256 IS
   END FUNCTION SIG1;
 
   -- K root
-  TYPE t_k IS ARRAY(0 TO 63) OF uint32_t;
-  CONSTANT k : t_k :=
-  (
-  x"428a2f98", x"71374491", x"b5c0fbcf", x"e9b5dba5", x"3956c25b", x"59f111f1", x"923f82a4", x"ab1c5ed5",
-  x"d807aa98", x"12835b01", x"243185be", x"550c7dc3", x"72be5d74", x"80deb1fe", x"9bdc06a7", x"c19bf174",
-  x"e49b69c1", x"efbe4786", x"0fc19dc6", x"240ca1cc", x"2de92c6f", x"4a7484aa", x"5cb0a9dc", x"76f988da",
-  x"983e5152", x"a831c66d", x"b00327c8", x"bf597fc7", x"c6e00bf3", x"d5a79147", x"06ca6351", x"14292967",
-  x"27b70a85", x"2e1b2138", x"4d2c6dfc", x"53380d13", x"650a7354", x"766a0abb", x"81c2c92e", x"92722c85",
-  x"a2bfe8a1", x"a81a664b", x"c24b8b70", x"c76c51a3", x"d192e819", x"d6990624", x"f40e3585", x"106aa070",
-  x"19a4c116", x"1e376c08", x"2748774c", x"34b0bcb5", x"391c0cb3", x"4ed8aa4a", x"5b9cca4f", x"682e6ff3",
-  x"748f82ee", x"78a5636f", x"84c87814", x"8cc70208", x"90befffa", x"a4506ceb", x"bef9a3f7", x"c67178f2");
 
   TYPE t_sm IS (init, transform_pre_0, transform_pre_1, transform, transform_final, first_and_last, final, done);
   SIGNAL sm : t_sm;
@@ -105,6 +81,17 @@ ARCHITECTURE Behavioral OF sha256 IS
   SIGNAL is_final_blk : BOOLEAN;
   TYPE t_hash IS ARRAY(0 TO 31) OF uint8_t;
   SIGNAL hash : t_hash;
+
+  -- components
+  COMPONENT k_memory IS
+    PORT (
+      clk   : IN STD_LOGIC;
+      valid : IN BOOLEAN;
+      out_k : OUT uint32_t
+    );
+  END COMPONENT k_memory;
+  SIGNAL k : uint32_t;
+  SIGNAL valid_k : BOOLEAN;
 
 BEGIN
   -- preprocessing
@@ -182,6 +169,9 @@ BEGIN
             m(i) := data(4 * i) & data(4 * i + 1) & data(4 * i + 2) & data(4 * i + 3);
           END LOOP;
           sm <= transform_pre_1;
+
+          -- enable k from memory (2 clk delay)
+          valid_k <= true;
         ELSIF sm = transform_pre_1 THEN
           -- sha transform
           FOR i IN 16 TO 63 LOOP
@@ -201,9 +191,10 @@ BEGIN
           -- process chunk
           transform_counter <= 0;
           sm <= transform;
+
         ELSIF sm = transform THEN
           -- process chunk (transform function)
-          v_t1 := h + EP1(e) + CH(e, f, g) + k(transform_counter) + m(transform_counter);
+          v_t1 := h + EP1(e) + CH(e, f, g) + k + m(transform_counter);
           v_t2 := EP0(a) + MAJ(a, b, c);
           h <= g;
           g <= f;
@@ -217,6 +208,7 @@ BEGIN
 
           IF transform_counter = 63 THEN
             sm <= transform_final;
+            valid_k <= false;
           END IF;
         ELSIF sm = transform_final THEN
           state(0) <= state(0) + a;
@@ -310,4 +302,10 @@ BEGIN
       done_out <= '1';
     END IF;
   END PROCESS p_signalization;
+
+  K0 : k_memory PORT MAP(
+    clk   => clk,
+    valid => valid_k,
+    out_k => k
+  );
 END ARCHITECTURE Behavioral;

@@ -1,4 +1,6 @@
 vhdl/*.cf
 vhdl/*.o
 vhdl/sha256
-c/*.out
+c/sha256_test
+vhdl/k_memory
+vhdl/sha256_tb
