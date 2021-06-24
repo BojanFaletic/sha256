@@ -110,6 +110,8 @@ BEGIN
   p_main : PROCESS (clk)
     VARIABLE v_t1, v_t2 : uint32_t;
     VARIABLE m : t_m;
+    variable v_m : uint32_t;
+    variable i : integer range 0 to 63;
   BEGIN
     IF rising_edge(clk) THEN
       IF rst_n = '0' THEN
@@ -165,18 +167,10 @@ BEGIN
           sm <= transform_pre_0;
 
         ELSIF sm = transform_pre_0 THEN
-          FOR i IN 0 TO 15 LOOP
-            m(i) := data(4 * i) & data(4 * i + 1) & data(4 * i + 2) & data(4 * i + 3);
-          END LOOP;
           sm <= transform_pre_1;
-
           -- enable k from memory (2 clk delay)
           valid_k <= true;
         ELSIF sm = transform_pre_1 THEN
-          -- sha transform
-          FOR i IN 16 TO 63 LOOP
-            m(i) := SIG1(m(i - 2)) + m(i - 7) + SIG0(m(i - 15)) + m(i - 16);
-          END LOOP;
 
           -- init variable
           a <= state(0);
@@ -194,6 +188,13 @@ BEGIN
 
         ELSIF sm = transform THEN
           -- process chunk (transform function)
+          i := transform_counter;
+          if transform_counter < 16 then
+            m(i) := data(4 * i) & data(4 * i + 1) & data(4 * i + 2) & data(4 * i + 3);
+          else
+            m(i) := SIG1(m(i - 2)) + m(i - 7) + SIG0(m(i - 15)) + m(i - 16);
+          end if;
+
           v_t1 := h + EP1(e) + CH(e, f, g) + k + m(transform_counter);
           v_t2 := EP0(a) + MAJ(a, b, c);
           h <= g;
