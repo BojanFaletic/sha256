@@ -55,8 +55,6 @@ ARCHITECTURE Behavioral OF sha256 IS
     RETURN rotate_right(x, 17) XOR rotate_right(x, 19) XOR shift_right(x, 10);
   END FUNCTION SIG1;
 
-  -- K root
-
   TYPE t_sm IS (init, transform_pre_0, transform_pre_1, transform, transform_final, first_and_last, final, done);
   SIGNAL sm : t_sm;
 
@@ -188,18 +186,16 @@ BEGIN
 
         ELSIF sm = transform THEN
           -- process chunk (transform function)
-          i := transform_counter;
           IF transform_counter < 16 THEN
             m(16) := data(0) & data(1) & data(2) & data(3);
           ELSE
             m(16) := SIG1(m(16 - 2)) + m(16 - 7) + SIG0(m(16 - 15)) + m(16 - 16);
           END IF;
 
-          for j in 0 to 15 loop
-            m(j) := m(j+1);
-          end loop;
-
           -- shift register for data
+          FOR j IN 0 TO 15 LOOP
+            m(j) := m(j + 1);
+          END LOOP;
           FOR j IN 0 TO 14 LOOP
             data(j * 4) <= data((j + 1) * 4);
             data(j * 4 + 1) <= data((j + 1) * 4 + 1);
@@ -207,6 +203,7 @@ BEGIN
             data(j * 4 + 3) <= data((j + 1) * 4 + 3);
           END LOOP;
 
+          -- sha digest core
           v_t1 := h + EP1(e) + CH(e, f, g) + k + m(16);
           v_t2 := EP0(a) + MAJ(a, b, c);
           h <= g;
@@ -218,10 +215,11 @@ BEGIN
           b <= a;
           a <= v_t1 + v_t2;
           transform_counter <= transform_counter + 1;
-
           IF transform_counter = 63 THEN
             sm <= transform_final;
             valid_k <= false;
+            -- increment processed chunk counter
+            chunk_process_cnt <= chunk_process_cnt + 1;
           END IF;
         ELSIF sm = transform_final THEN
           state(0) <= state(0) + a;
@@ -233,13 +231,8 @@ BEGIN
           state(6) <= state(6) + g;
           state(7) <= state(7) + h;
 
-          -- clear data to all zeros (used in final stage)
-          FOR i IN 0 TO 63 LOOP
-            data(i) <= x"00";
-          END LOOP;
+          busy <= '0';
 
-          -- check if this is last block of hash
-          chunk_process_cnt <= chunk_process_cnt + 1;
           IF is_final_blk THEN
             -- hashing is complete
             sm <= done;
@@ -255,6 +248,12 @@ BEGIN
 
           -- assume data is less than 56
           ASSERT text_rem >= 56 REPORT "not implemented";
+
+
+          -- copy input data to core buffer
+          FOR i IN 0 TO 63 LOOP
+            data(i) <= unsigned(text_chunk(8 * (i + 1) - 1 DOWNTO 8 * i));
+          END LOOP;
 
           data(to_integer(text_rem)) <= x"80";
 
@@ -283,7 +282,7 @@ BEGIN
 
           -- process chunk
           transform_counter <= 0;
-          sm <= transform;
+          sm <= transform_pre_0;
 
           -- process last chunk
 

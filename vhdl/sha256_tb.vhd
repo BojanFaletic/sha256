@@ -28,54 +28,66 @@ ARCHITECTURE Behavioral OF sha256_tb IS
     SIGNAL clk : STD_LOGIC := '0';
     SIGNAL rst_n : STD_LOGIC := '0';
 
-    SIGNAL text_length : uint32_t := to_unsigned(3, 32);
+    SIGNAL text_length : uint32_t := to_unsigned(65, 32);
     TYPE t_temp_msg IS ARRAY(0 TO 63) OF uint8_t;
-    SIGNAL temp_msg : t_temp_msg := (0 => x"61", 1 => x"62", 2 => x"63", OTHERS => x"00");
+    --SIGNAL temp_msg : t_temp_msg := (0 => x"61", 1 => x"62", 2 => x"63", OTHERS => x"00");
+    SIGNAL temp_msg : t_temp_msg;
+    SIGNAL temp_msg_0 : t_temp_msg := (OTHERS => x"61");
+    SIGNAL temp_msg_1 : t_temp_msg := (0 => x"61", OTHERS => x"00");
 
     SIGNAL text_chunk : text_chunk_t;
-    signal data_in_valid : std_logic := '0';
-    signal ready : std_logic;
-    signal done_out : std_logic;
-    signal busy : std_logic;
-begin
+    SIGNAL data_in_valid : STD_LOGIC := '0';
+    SIGNAL ready : STD_LOGIC;
+    SIGNAL done_out : STD_LOGIC;
+    SIGNAL busy : STD_LOGIC;
 
-p_async : process
-begin
-    for i in 0 to 63 loop
-        text_chunk(8*(i+1)-1 downto 8*i) <= std_logic_vector(temp_msg(i));
-    end loop;
-    wait;
-end process p_async;
+    FUNCTION TC(x : t_temp_msg) RETURN text_chunk_t IS
+        VARIABLE tmp : text_chunk_t;
+    BEGIN
+        FOR i IN 0 TO 63 LOOP
+            tmp(8 * (i + 1) - 1 DOWNTO 8 * i) := STD_LOGIC_VECTOR(x(i));
+        END LOOP;
+        RETURN tmp;
+    END FUNCTION TC;
+BEGIN
 
+    p_async : PROCESS
+    BEGIN
+        WAIT;
+    END PROCESS p_async;
+    p_clk_generator : PROCESS
+    BEGIN
+        clk <= NOT clk;
+        WAIT FOR 5 ns;
+    END PROCESS p_clk_generator;
 
-p_clk_generator : process
-begin
-    clk <= not clk;
-    wait for 5 ns;
-end process p_clk_generator;
+    p_run : PROCESS
+    BEGIN
+        WAIT FOR 100 ns;
+        rst_n <= '1';
+        data_in_valid <= '1';
+        text_chunk <= TC(temp_msg_0);
+        WAIT FOR 10 ns;
+        data_in_valid <= '0';
+        WAIT UNTIL busy = '0';
 
-p_run : process
-begin
-    wait for 100 ns;
-    rst_n <= '1';
-    data_in_valid <= '1';
-    wait for 10 ns;
-    data_in_valid <= '0';
+        data_in_valid <= '1';
+        text_chunk <= TC(temp_msg_1);
+        WAIT FOR 10 ns;
+        data_in_valid <= '0';
+        WAIT;
+    END PROCESS p_run;
 
-
-    wait;
-end process p_run;
-
-T : sha256 port map(
-    clk => clk,
-    rst_n => rst_n,
-    data_in_valid => data_in_valid,
-    text_length => text_length,
-    text_chunk => text_chunk,
-    ready => ready,
-    busy => busy,
-    done_out => done_out,
-    hash_out => open
-);
+    T : sha256 PORT MAP(
+        clk           => clk,
+        rst_n         => rst_n,
+        data_in_valid => data_in_valid,
+        text_length   => text_length,
+        text_chunk    => text_chunk,
+        ready         => ready,
+        busy          => busy,
+        done_out      => done_out,
+        hash_out      => OPEN
+    );
 
 END ARCHITECTURE Behavioral;
