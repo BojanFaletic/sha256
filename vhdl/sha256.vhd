@@ -132,6 +132,8 @@ BEGIN
       ELSE
         IF sm = init THEN
           ready <= '1';
+          busy <= '0';
+          done_out <= '0';
           IF data_in_valid = '1' THEN
             -- copy input data to core buffer
             FOR i IN 0 TO 63 LOOP
@@ -151,6 +153,7 @@ BEGIN
             END IF;
           END IF;
         ELSIF sm = first_and_last THEN
+          busy <= '1';
           data(to_integer(text_rem)) <= x"80";
 
           -- append data length to end of block
@@ -167,10 +170,12 @@ BEGIN
           sm <= transform_pre_0;
 
         ELSIF sm = transform_pre_0 THEN
+          busy <= '1';
           sm <= transform_pre_1;
           -- enable k from memory (2 clk delay)
           valid_k <= true;
         ELSIF sm = transform_pre_1 THEN
+          busy <= '1';
 
           -- init variable
           a <= state(0);
@@ -187,6 +192,7 @@ BEGIN
           sm <= transform;
 
         ELSIF sm = transform THEN
+          busy <= '1';
           -- process chunk (transform function)
           IF transform_counter < 16 THEN
             m(16) := data(0) & data(1) & data(2) & data(3);
@@ -224,6 +230,7 @@ BEGIN
             chunk_process_cnt <= chunk_process_cnt + 1;
           END IF;
         ELSIF sm = transform_final THEN
+
           state(0) <= state(0) + a;
           state(1) <= state(1) + b;
           state(2) <= state(2) + c;
@@ -232,26 +239,24 @@ BEGIN
           state(5) <= state(5) + f;
           state(6) <= state(6) + g;
           state(7) <= state(7) + h;
-
-          busy <= '0';
-
           IF is_final_blk THEN
             -- hashing is complete
             sm <= done;
           ELSIF (chunk_process_cnt + 1) * 64 > text_length THEN
             -- jump to final or process another hash
             sm <= final;
+            busy <= '1';
           ELSE
             -- process next block
             sm <= transform_pre_0;
+            busy <= '0';
           END IF;
         ELSIF sm = final THEN
           -- process final block (append length)
+          busy <= '0';
 
           -- assume data is less than 56
           ASSERT text_rem < 56 REPORT "not implemented";
-
-
           -- copy input data to core buffer
           FOR i IN 0 TO 63 LOOP
             data(i) <= unsigned(text_chunk(8 * (i + 1) - 1 DOWNTO 8 * i));
@@ -290,6 +295,7 @@ BEGIN
 
         ELSIF sm = done THEN
           -- write output hash to output
+          busy <= '0';
 
           -- reverse to little indian and output
           FOR i IN 0 TO 3 LOOP
