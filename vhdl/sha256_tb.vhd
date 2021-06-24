@@ -58,9 +58,8 @@ p_run : process
 begin
     wait for 100 ns;
     rst_n <= '1';
-    wait for 10 ns;
     data_in_valid <= '1';
-    wait for 20 ns;
+    wait for 10 ns;
     data_in_valid <= '0';
 
 

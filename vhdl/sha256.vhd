@@ -81,7 +81,7 @@ ARCHITECTURE Behavioral OF sha256 IS
   x"19a4c116", x"1e376c08", x"2748774c", x"34b0bcb5", x"391c0cb3", x"4ed8aa4a", x"5b9cca4f", x"682e6ff3",
   x"748f82ee", x"78a5636f", x"84c87814", x"8cc70208", x"90befffa", x"a4506ceb", x"bef9a3f7", x"c67178f2");
 
-  TYPE t_sm IS (init, transform_pre, transform, transform_final, final, done);
+  TYPE t_sm IS (init, transform_pre_0, transform_pre_1, transform, transform_final, final, done);
   SIGNAL sm : t_sm;
 
   -- ctx structure
@@ -99,7 +99,6 @@ ARCHITECTURE Behavioral OF sha256 IS
   -- variables
   SIGNAL a, b, c, d, e, f, g, h, i, j : uint32_t;
   TYPE t_m IS ARRAY(0 TO 63) OF uint32_t;
-  SIGNAL m : t_m;
   SIGNAL text_rem : uint8_t;
 
   -- status variable (this should probably be optimized)
@@ -123,6 +122,7 @@ BEGIN
 
   p_main : PROCESS (clk)
     VARIABLE v_t1, v_t2 : uint32_t;
+    VARIABLE m : t_m;
   BEGIN
     IF rising_edge(clk) THEN
       IF rst_n = '0' THEN
@@ -151,7 +151,7 @@ BEGIN
             -- data_len = 0
 
             -- signalling
-            sm <= transform_pre;
+            sm <= transform_pre_0;
             chunk_process_cnt <= 0;
             busy <= '1';
             IF text_length < 56 THEN
@@ -160,36 +160,36 @@ BEGIN
               is_final_blk <= false;
             END IF;
           END IF;
-        ELSIF sm = transform_pre THEN
-          -- if input data is available
-          IF data_in_valid = '1' THEN
-            -- sha transform
-            FOR i IN 0 TO 15 LOOP
-              m(i) <= data(4 * i) & data(4 * i + 1) & data(4 * i + 2) & data(4 * i + 3);
-            END LOOP;
+        ELSIF sm = transform_pre_0 THEN
+          FOR i IN 0 TO 15 LOOP
+            m(i) := data(4 * i) & data(4 * i + 1) & data(4 * i + 2) & data(4 * i + 3);
+          END LOOP;
+          sm <= transform_pre_1;
+        ELSIF sm = transform_pre_1 THEN
+          -- sha transform
+          FOR i IN 16 TO 63 LOOP
+            m(i) := SIG1(m(i - 2)) + m(i - 7) + SIG0(m(i - 15)) + m(i - 16);
+          END LOOP;
 
-            -- expand to 64 block
-            FOR i IN 16 TO 63 LOOP
-              m(i) <= SIG1(m(i - 2)) + m(i - 7) + SIG0(m(i - 15)) + m(i - 16);
-            END LOOP;
+          -- init variable
+          a <= state(0);
+          b <= state(1);
+          c <= state(2);
+          d <= state(3);
+          e <= state(4);
+          f <= state(5);
+          g <= state(6);
+          h <= state(7);
 
-            -- init variable
-            a <= state(0);
-            b <= state(1);
-            c <= state(2);
-            d <= state(3);
-            e <= state(4);
-            f <= state(5);
-            g <= state(6);
-            h <= state(7);
-
-            -- process chunk
-            transform_counter <= 0;
-            sm <= transform;
-          END IF;
+          -- process chunk
+          transform_counter <= 0;
+          sm <= transform;
         ELSIF sm = transform THEN
           -- process chunk (transform function)
           v_t1 := h + EP1(e) + CH(e, f, g) + k(transform_counter) + m(transform_counter);
+          IF transform_counter = 16 THEN
+            NULL;
+          END IF;
           v_t2 := EP0(a) + MAJ(a, b, c);
           h <= g;
           g <= f;
@@ -228,7 +228,7 @@ BEGIN
             sm <= final;
           ELSE
             -- process next block
-            sm <= transform_pre;
+            sm <= transform_pre_0;
           END IF;
         ELSIF sm = final THEN
           -- process final block (append length)
