@@ -112,12 +112,12 @@ BEGIN
   -- check reminder of text_input (used in final block modulo 64)
   text_rem <= resize(text_length(5 DOWNTO 0), 8);
   -- length in bits of full text (8*sizeof(msg))
-  bit_len <= resize(shift_left(text_length, 8), 64);
+  bit_len <= resize(shift_left(text_length, 3), 64);
   -- hash data type format to hash_type
   p_async : PROCESS (hash)
   BEGIN
     FOR i IN 0 TO 31 LOOP
-      hash_out(8 * (i + 1) - 1 DOWNTO 8 * i) <= std_logic_vector(hash(i));
+      hash_out(8 * (i + 1) - 1 DOWNTO 8 * i) <= STD_LOGIC_VECTOR(hash(i));
     END LOOP;
   END PROCESS p_async;
 
@@ -128,7 +128,6 @@ BEGIN
       IF rst_n = '0' THEN
         -- init state (reset ctx)
         data_len <= to_unsigned(0, 32);
-        bit_len <= to_unsigned(0, 64);
 
         state(0) <= x"6a09e667";
         state(1) <= x"bb67ae85";
@@ -139,21 +138,27 @@ BEGIN
         state(6) <= x"1f83d9ab";
         state(7) <= x"5be0cd19";
         busy <= '0';
+        ready <= '0';
+        sm <= init;
       ELSE
         IF sm = init THEN
+          ready <= '1';
           IF data_in_valid = '1' THEN
             -- copy input data to core buffer
             FOR i IN 0 TO 63 LOOP
               data(i) <= unsigned(text_chunk(8 * (i + 1) - 1 DOWNTO 8 * i));
             END LOOP;
-            bit_len <= bit_len + 512;
             -- data_len = 0
 
             -- signalling
             sm <= transform_pre;
             chunk_process_cnt <= 0;
             busy <= '1';
-            is_final_blk <= false;
+            IF text_length < 56 THEN
+              is_final_blk <= true;
+            ELSE
+              is_final_blk <= false;
+            END IF;
           END IF;
         ELSIF sm = transform_pre THEN
           -- if input data is available
@@ -266,21 +271,28 @@ BEGIN
           -- write output hash to output
 
           -- reverse to little indian and output
-          FOR i IN 0 TO 4 LOOP
-            hash(i) <= shift_left(state(0), (24 - i * 8));
-            hash(i + 4) <= shift_left(state(1), (24 - i * 8));
-            hash(i + 8) <= shift_left(state(2), (24 - i * 8));
-            hash(i + 12) <= shift_left(state(3), (24 - i * 8));
-            hash(i + 16) <= shift_left(state(4), (24 - i * 8));
-            hash(i + 20) <= shift_left(state(5), (24 - i * 8));
-            hash(i + 24) <= shift_left(state(6), (24 - i * 8));
-            hash(i + 28) <= shift_left(state(7), (24 - i * 8));
+          FOR i IN 0 TO 3 LOOP
+            hash(i) <= shift_left(state(0), (24 - i * 8))(7 DOWNTO 0);
+            hash(i + 4) <= shift_left(state(1), (24 - i * 8))(7 DOWNTO 0);
+            hash(i + 8) <= shift_left(state(2), (24 - i * 8))(7 DOWNTO 0);
+            hash(i + 12) <= shift_left(state(3), (24 - i * 8))(7 DOWNTO 0);
+            hash(i + 16) <= shift_left(state(4), (24 - i * 8))(7 DOWNTO 0);
+            hash(i + 20) <= shift_left(state(5), (24 - i * 8))(7 DOWNTO 0);
+            hash(i + 24) <= shift_left(state(6), (24 - i * 8))(7 DOWNTO 0);
+            hash(i + 28) <= shift_left(state(7), (24 - i * 8))(7 DOWNTO 0);
           END LOOP;
-          done_out <= '1';
 
           sm <= init;
         END IF;
       END IF;
     END IF;
   END PROCESS p_main;
+  p_signalization : PROCESS (sm)
+  BEGIN
+    IF sm /= done THEN
+      done_out <= '0';
+    ELSE
+      done_out <= '1';
+    END IF;
+  END PROCESS p_signalization;
 END ARCHITECTURE Behavioral;
