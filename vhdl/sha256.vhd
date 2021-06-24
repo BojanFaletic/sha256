@@ -74,7 +74,7 @@ ARCHITECTURE Behavioral OF sha256 IS
 
   -- variables
   SIGNAL a, b, c, d, e, f, g, h : uint32_t;
-  TYPE t_m IS ARRAY(0 TO 63) OF uint32_t;
+  TYPE t_m IS ARRAY(0 TO 16) OF uint32_t;
   SIGNAL text_rem : uint8_t;
 
   -- status variable (this should probably be optimized)
@@ -190,10 +190,14 @@ BEGIN
           -- process chunk (transform function)
           i := transform_counter;
           IF transform_counter < 16 THEN
-            m(i) := data(0) & data(1) & data(2) & data(3);
+            m(16) := data(0) & data(1) & data(2) & data(3);
           ELSE
-            m(i) := SIG1(m(i - 2)) + m(i - 7) + SIG0(m(i - 15)) + m(i - 16);
+            m(16) := SIG1(m(16 - 2)) + m(16 - 7) + SIG0(m(16 - 15)) + m(16 - 16);
           END IF;
+
+          for j in 0 to 15 loop
+            m(j) := m(j+1);
+          end loop;
 
           -- shift register for data
           FOR j IN 0 TO 14 LOOP
@@ -203,7 +207,7 @@ BEGIN
             data(j * 4 + 3) <= data((j + 1) * 4 + 3);
           END LOOP;
 
-          v_t1 := h + EP1(e) + CH(e, f, g) + k + m(transform_counter);
+          v_t1 := h + EP1(e) + CH(e, f, g) + k + m(16);
           v_t2 := EP0(a) + MAJ(a, b, c);
           h <= g;
           g <= f;
