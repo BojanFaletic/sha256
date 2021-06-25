@@ -71,10 +71,6 @@ ARCHITECTURE Behavioral OF sha256_tb IS
     END FUNCTION check_hash;
 BEGIN
 
-    p_async : PROCESS
-    BEGIN
-        WAIT;
-    END PROCESS p_async;
     p_clk_generator : PROCESS
     BEGIN
         clk <= NOT clk;

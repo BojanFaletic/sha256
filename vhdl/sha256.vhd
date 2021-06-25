@@ -244,7 +244,7 @@ BEGIN
           ELSIF (chunk_process_cnt + 1) * 64 > text_length THEN
             -- jump to final or process another hash
             sm <= final;
-            busy <= '1';
+            busy <= '0';
           ELSE
             -- process next block
             sm <= transform_pre_1;
@@ -253,7 +253,7 @@ BEGIN
           END IF;
         ELSIF sm = final THEN
           -- process final block (append length)
-          busy <= '0';
+          busy <= '1';
 
           -- assume data is less than 56
           ASSERT text_rem < 56 REPORT "not implemented";
