@@ -99,12 +99,12 @@ BEGIN
         WAIT FOR 10 ns;
         data_in_valid <= '0';
 
-        WAIT UNTIL done_out = '1';
-        IF check_hash(out_hash_correct_1, hash_out) THEN
-            REPORT "Hash passed!";
-        ELSE
-            REPORT "Hash ERROR!";
-        END IF;
+        wait until done_out = '1';
+        if check_hash(out_hash_correct_1, hash_out) then
+            report "Hash passed!";
+        else
+            report "Hash ERROR!";
+        end if;
 
         -- test simple (3*a)
         WAIT FOR 10 ns;
