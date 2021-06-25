@@ -117,20 +117,20 @@ BEGIN
         -- init state (reset ctx)
         data_len <= to_unsigned(0, 32);
 
-        state(0) <= x"6a09e667";
-        state(1) <= x"bb67ae85";
-        state(2) <= x"3c6ef372";
-        state(3) <= x"a54ff53a";
-        state(4) <= x"510e527f";
-        state(5) <= x"9b05688c";
-        state(6) <= x"1f83d9ab";
-        state(7) <= x"5be0cd19";
         busy <= '0';
         ready <= '0';
         done_out <= '0';
         sm <= init;
       ELSE
         IF sm = init THEN
+          state(0) <= x"6a09e667";
+          state(1) <= x"bb67ae85";
+          state(2) <= x"3c6ef372";
+          state(3) <= x"a54ff53a";
+          state(4) <= x"510e527f";
+          state(5) <= x"9b05688c";
+          state(6) <= x"1f83d9ab";
+          state(7) <= x"5be0cd19";
           ready <= '1';
           busy <= '0';
           done_out <= '0';
