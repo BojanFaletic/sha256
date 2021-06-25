@@ -63,7 +63,7 @@ ARCHITECTURE Behavioral OF sha256_tb IS
     FUNCTION check_hash(a : t_hash; b : hash_out_t) RETURN BOOLEAN IS
     BEGIN
         FOR i IN 0 TO 31 LOOP
-            IF b(8 * (i + 1) - 1 DOWNTO 8 * i) = STD_LOGIC_VECTOR(a(0)) THEN
+            IF b(8 * (i + 1) - 1 DOWNTO 8 * i) = STD_LOGIC_VECTOR(a(i)) THEN
                 RETURN false;
             END IF;
         END LOOP;
@@ -99,7 +99,7 @@ BEGIN
         WAIT FOR 10 ns;
         data_in_valid <= '0';
 
-        wait until done_out = '1';
+        wait until done_out = '1' and clk'event;
         if check_hash(out_hash_correct_1, hash_out) then
             report "Hash passed!";
         else
@@ -114,7 +114,7 @@ BEGIN
         WAIT FOR 10 ns;
         data_in_valid <= '0';
 
-        WAIT UNTIL done_out = '1';
+        WAIT UNTIL done_out = '1' and clk'event;
         IF check_hash(out_hash_correct_2, hash_out) THEN
             REPORT "Hash passed!";
         ELSE
